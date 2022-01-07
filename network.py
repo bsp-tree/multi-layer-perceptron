@@ -6,12 +6,12 @@ class MLP:
     objects and will construct a network from the input layers in order, meaning
     the first layer passed to the class on construction will be the first layer
     when feedforward and backprop get called.
-    
+
     Inputs (Constructor):
     *layers - Variable number of layer objects from the layer class
     Y - One-hot encoded truth vector (must be one-hot)
     lr - Learning rate hyperparameter
-    
+
     """
     def __init__(self, *layers, Y, lr = 0.01):
         self.layers = layers
@@ -25,7 +25,7 @@ class MLP:
         self.avg_loss = 0
         self.avg_accuracy = 0
         self.best_weights_epoch = 0
-        
+
     def feedforward(self):
         """
         Computes one full feedforward through the network. Starting with the
@@ -33,15 +33,15 @@ class MLP:
         an activation function, the activation is then calculated. Following this,
         the resulting output is set up as the input to the next layer, unless the
         current layer is the output layer.
-        
+
         Inputs:
-        
+
         None
-        
+
         Outputs:
-        
+
         YHat - The normalized output of the feedforward calculation.
-        
+
         """
         for i in range(len(self.layers)):
             self.layers[i].compute_linear()
@@ -50,27 +50,27 @@ class MLP:
                 next_input_extended = self.add_bias_factor(next_input, 0)
             else:
                 next_input = self.layers[i].linear_output
-                
+
             if i != (len(self.layers) - 1):
                 self.layers[i + 1].set_input(next_input, next_input_extended)
 
         self.Yhat = next_input
         return self.Yhat
-            
-        
+
+
     def backprop(self, batch_size):
         """
         Computes a single iteration of backpropagation and updates the layer
         weights and biases. Special handling is done to make sure the loss
-        derivative gets calculated first, note that the loss derivatives 
+        derivative gets calculated first, note that the loss derivatives
         are with respect to the unnormalized outputs, not the normalized.
-        
+
         Inputs:
-        
+
         batch_size - Just the batch size.
-        
+
         Outputs:
-        
+
         None
         """
         for i in reversed(range(len(self.layers))):
@@ -81,7 +81,7 @@ class MLP:
                     dZ = current_layer.cross_entropy_derivative(self.Y)
                 elif loss_function == "hinge":
                     dZ = current_layer.hinge_derivative(self.Y)
-                    
+
                 dW = (1 / batch_size) * np.transpose(current_layer.X_extended) @ dZ
             else:
                 previous_layer = self.layers[i + 1]
@@ -90,11 +90,11 @@ class MLP:
                 Derivative of the input of the previous layer.
                 Technically this should be a multiplication between
                 dZ and W_exetened.T, but it is cleaner and requires
-                less matrix manipulation to just muiltiply by W.T 
+                less matrix manipulation to just muiltiply by W.T
                 here, and gives the same end result.
                 """
                 dH = dZ @ previous_layer.W.T
-                
+
                 if current_layer.activation_function == "relu":
                     dA = current_layer.relu_derivative(current_layer.Z)
                 elif current_layer.activation_function == "sigmoid":
@@ -102,11 +102,11 @@ class MLP:
 
                 # Element-wise multiplication
                 dZ = np.multiply(dH, dA)
-                
+
                 dW = (1 / batch_size) * np.transpose(current_layer.X_extended) @ dZ
-                  
+
             current_layer.W_extended = current_layer.W_extended - (dW * self.lr)
-        
+
     def cross_entropy_loss(self):
         """
         Computes the Cross-Entropy loss for a multi-class classification
@@ -116,8 +116,8 @@ class MLP:
         Outputs:
         Loss - The average loss across the batch where the loss for each example
         is calculated as -log(p), where p is the probability found in YHat at the
-        index corresponding to the correct classification in the one-hot encoded 
-        test or training label Y. 
+        index corresponding to the correct classification in the one-hot encoded
+        test or training label Y.
         """
         label_index = np.argwhere(self.Y == 1)
         loss = np.sum(-np.log(self.Yhat[label_index[:, 0], label_index[:, 1]]))
@@ -137,7 +137,7 @@ class MLP:
         loss = np.sum(hinge)
 
         return loss
-        
+
     def compute_accuracy(self):
         """
         Computes the number of classifications that were correct and incorrect.
@@ -147,13 +147,13 @@ class MLP:
         Inputs:
         None
 
-        Outputs:    
+        Outputs:
         right_class - Integer, number of predictions that were correct.
         wrong_class - Integer, number of predictions that were incorrect
         """
         wrong_class = 0
         right_class = 0
-        
+
         for i in range(len(self.Yhat)):
             yhat_arg = np.argmax(self.Yhat[i, :])
             y_arg = np.argmax(self.Y[i, :])
@@ -162,7 +162,7 @@ class MLP:
                 right_class = right_class + 1
             else:
                 wrong_class = wrong_class + 1
-                
+
         return right_class, wrong_class
 
     def compute_loss(self):
@@ -176,10 +176,10 @@ class MLP:
             loss = self.cross_entropy_loss()
 
         return loss
-        
+
     def train(self, epochs, num_loops, batch_size, x_train, y_train, x_test, y_test, find_best_weights):
         """
-        The training loop that calls feedforward and backprop for a specified number of epochs. 
+        The training loop that calls feedforward and backprop for a specified number of epochs.
 
         Inputs:
 
@@ -203,7 +203,7 @@ class MLP:
         self.avg_accuracy = np.zeros(epochs)
         self.test_loss = np.zeros(epochs)
         self.test_accuracy = np.zeros(epochs)
-        
+
         for i in range(epochs):
 
             # Shuffle the dataset with a different seed each loop, so that the shuffling isn't the same every epoch.
@@ -214,7 +214,7 @@ class MLP:
 
             self.loss = np.array(np.zeros(num_loops))
             self.accuracy = np.array(np.zeros(num_loops))
-            
+
             for j in range(num_loops):
                 batch_end = (j + 1) * batch_size
                 batch_start = batch_end - batch_size
@@ -222,11 +222,11 @@ class MLP:
                 # Set the first layer input
                 x_train_extended = self.add_bias_factor(train_x_shuffled[batch_start:batch_end, :], 0)
                 self.layers[0].set_input(train_x_shuffled[batch_start:batch_end, :], x_train_extended)
-                
+
                 self.Y = train_y_shuffled[batch_start:batch_end, :]
                 self.Yhat = self.feedforward()
                 self.backprop(batch_size)
-                
+
                 self.loss[j] = self.compute_loss() / batch_size
                 right_class, wrong_class = self.compute_accuracy()
                 self.accuracy[j] = (right_class / batch_size) * 100
@@ -238,20 +238,20 @@ class MLP:
             Here I evaluate the data on the entire test set and calculate the loss
             and the accuracy. Note that while the X and Y values of the network are
             being modified here, they can set to the training data before
-            backprop is ever called again, so the network is not being trained on the 
-            test set in any way. Removing this code will not impact training or 
+            backprop is ever called again, so the network is not being trained on the
+            test set in any way. Removing this code will not impact training or
             test accuracy (I tested this), it is just here so keep track of test
-            loss and accuracy improvements as the model trains and to aid in the 
+            loss and accuracy improvements as the model trains and to aid in the
             determination of the best weights after the model is done training.
             """
 
             if find_best_weights:
                 x_test_extended = self.add_bias_factor(x_test, 0)
                 self.layers[0].set_input(x_test, x_test_extended)
-                
+
                 self.Y = y_test
                 self.Yhat = self.feedforward()
-                
+
                 self.test_loss[i] = np.sum(self.compute_loss()) / len(y_test)
                 right_class, wrong_class = self.compute_accuracy()
                 self.test_accuracy[i] = (right_class / len(y_test)) * 100
@@ -278,7 +278,7 @@ class MLP:
         if add_to_row:
             matrix_extended = np.zeros((matrix.shape[0] + 1, matrix.shape[1]))
             matrix_extended[:-1, :] = matrix
-        else: 
+        else:
             matrix_extended = np.ones((matrix.shape[0], matrix.shape[1] + 1))
             matrix_extended[:, :-1] = matrix
 
@@ -291,21 +291,21 @@ class MLP:
         for i in range(len(self.layers)):
             self.layers[i].W_extended = self.layers[i].best_W
 
-class Layer:  
+class Layer:
     """
     Layer class, used for creating a single layer and handles both the relevant
-    information about the layer, such as weight, bias, input, unnomralized output, 
+    information about the layer, such as weight, bias, input, unnomralized output,
     and normalized output, but also handles all of the computations that need to be
-    done in that layer. 
-    
+    done in that layer.
+
     Inputs (Constructor):
-    
+
     activation_function - String with the name of the activation function for the layer (relu, sigmoid, softmax, none).
-    
+
     num_inputs - Number of inputs to the layer
-    
+
     num_outputs - Number of outputs coming from the layer
-    
+
     loss_function - String specifying the loss function (hinge, softmax, none)
     """
     def __init__(self, activation_function = "none", num_inputs = 1, num_outputs = 1, loss_function = "none", init_type = "normal"):
@@ -321,47 +321,47 @@ class Layer:
         self.X_extended = 0
 
         self.init_params(init_type)
-       
+
     def relu(self, X):
         """
         Relu activation
-        
-        Inputs:        
+
+        Inputs:
         X - Should be the result of a layer's linear calculation
-        
-        Outputs:       
+
+        Outputs:
         Resulting matrix after applying relu activation, size is X.shape
         """
-        
+
         output = np.maximum(np.zeros(X.shape), X)
         return output
-    
+
     def sigmoid(self, X):
         """
         Sigmoid activation
-        
-        Inputs:       
+
+        Inputs:
         X - Should be the result of a layer's linear calculation
-        
-        Outputs:       
+
+        Outputs:
         Resulting matrix after applying sigmoid activation, size is X.shape
         """
-        
+
         return 1 / (1 + np.exp(-X))
-    
+
     def softmax(self, X):
         """
         Softmax activation
-        
-        Inputs:       
+
+        Inputs:
         X - Should be the result of the output layer's linear calculation
-        
-        Outputs:  
+
+        Outputs:
         Resulting matrix after applying softmax activation, size is X.shape
         """
-        
+
         return np.exp(X) / np.exp(X).sum(1, keepdims = True)
-    
+
     def cross_entropy_derivative(self, Y):
         """
         Calculates the derivative of cross-entropy loss with respect to
@@ -369,23 +369,23 @@ class Layer:
         input to a softmax activation in the output layer, so the derivative
         reduces to dloss/dZ = dloss/dYhat * dYhat/dZ, where Yhat is the output
         of softmax(Z) and Z is the unnormalized Yhat.
-        
+
         Inputs: Y, a one-hot encoded vector of truth values
-        
+
         Outputs: dloss/dZ, see above.
         """
-        
+
         return self.Yhat - Y
-    
+
     def relu_derivative(self, X):
         """
         Computes the relu derivative for an input X, and returns the resulting matrix.
         """
         dX = np.zeros(X.shape)
         dX[X >= 0] = 1
-        
+
         return dX
-    
+
     def sigmoid_derivative(self, X):
         """
         Computes the sigmoid derivative for an input Y, and returns the resulting matrix.
@@ -394,7 +394,7 @@ class Layer:
         sigmoid = self.sigmoid(X)
         sigmoid_derivative = sigmoid * (1 - sigmoid)
         return sigmoid_derivative
-    
+
     def hinge_derivative(self, Y):
         """
         Derivative for hinge loss with respect to the unnormalized output of the final
@@ -405,17 +405,17 @@ class Layer:
         of the number of times Zi - Zj + 1 is calculated for a particular output. In other words,
         if the derivative has already been calculated for all indices not j, the derivative of Zj
         is -n where n is the number of times 1 was the derivative for the other outputs Zi.
-        
+
         The following post was extremely helpful when I was trying to figure out the
         vectorized implementation for this: https://mlxai.github.io/2017/01/06/vectorized-implementation-of-svm-loss-and-gradient-update.html
-        
+
         """
         y_i = np.squeeze(np.nonzero(Y == 1))
         hinge = np.transpose(np.maximum(0, np.transpose(self.Z) - self.Z[y_i[0, :], y_i[1, :]] + 1))
         hinge[y_i[1, :]] = 0
 
-        # The derivative at indices where the hinge calculation did not return 0 is 1, 0 elsewhere (except for the truth index) 
-        hinge[hinge > 0] = 1 
+        # The derivative at indices where the hinge calculation did not return 0 is 1, 0 elsewhere (except for the truth index)
+        hinge[hinge > 0] = 1
 
         # Make sure value at truth index is 0
         hinge[y_i[0, :], y_i[1, :]] = 0
@@ -423,10 +423,10 @@ class Layer:
         # The derivative at the truth index can now be expressed as the negative of the sum of the number of ones
         grad_at_yi = -np.sum(hinge, axis = 1)
         hinge[y_i[0, :], y_i[1, :]] = grad_at_yi
-        
+
         hinge_derivative = hinge
         return hinge_derivative
-    
+
     def compute_linear(self):
         """
         Standard linear computation for a layer, note that it is XW + b because
@@ -437,14 +437,14 @@ class Layer:
         self.Z = self.X_extended @ self.W_extended
         self.linear_output = self.Z
         return self.Z
-        
+
     def compute_activation(self):
         """
         Calls the proper activation function for a layer depending on what that
         layer's specified activation is. This is so the network doesn't have to figure
         out what activation it needs to call, it just calls this function and the layer figures out
-        what activation function it needs. 
-        
+        what activation function it needs.
+
         Returns the output of the activation call.
         """
         if np.char.lower(self.activation_function) == "none":
@@ -456,9 +456,9 @@ class Layer:
             self.Yhat = self.activation_output
         elif np.char.lower(self.activation_function) == "sigmoid":
             self.activation_output = self.sigmoid(self.Z)
-            
+
         return self.activation_output
-    
+
     def init_params(self, type="normal"):
         """
         Initializes the weights and biases.
@@ -476,10 +476,11 @@ class Layer:
         # Set the extended weights after initialization so that the bias is set to 0
         self.W_extended = np.zeros((self.W.shape[0] + 1, self.W.shape[1]))
         self.W_extended[:-1, :] = self.W
-        
+
     def set_input(self, X, X_extended):
         self.X = X
         self.X_extended = X_extended
-        
+
     def set_activation_function(self, new_function):
         self.activation_function = new_function
+        
