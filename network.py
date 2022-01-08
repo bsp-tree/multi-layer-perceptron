@@ -1,3 +1,5 @@
+""" From scratch implementation of a multi-lyaer perceptron"""
+
 import numpy as np
 
 class MLP:
@@ -43,7 +45,7 @@ class MLP:
         y_hat - The normalized output of the feedforward calculation.
 
         """
-        for i in range(len(self.layers)):
+        for i, _ in enumerate(self.layers):
             self.layers[i].compute_linear()
             if np.char.lower(self.layers[i].activation_function) != "none":
                 next_input = self.layers[i].compute_activation()
@@ -266,13 +268,13 @@ class MLP:
 
                 if i == 0:
                     current_best_loss = self.test_loss[i]
-                    for j in range(len(self.layers)):
+                    for j, _ in enumerate(self.layers):
                         self.layers[j].best_w = self.layers[j].w_extended
                         self.best_weights_epoch = i
                 else:
                     if self.test_loss[i] < current_best_loss:
                         current_best_loss = self.test_loss[i]
-                        for j in range(len(self.layers)):
+                        for j, _ in enumerate(self.layers):
                             self.layers[j].best_w = self.layers[j].w_extended
                             self.best_weights_epoch = i
 
@@ -296,7 +298,7 @@ class MLP:
         """
         Call this to set each layer's weights to the best weights.
         """
-        for i in range(len(self.layers)):
+        for i, _ in enumerate(self.layers):
             self.layers[i].w_extended = self.layers[i].best_w
 
 class Layer:
@@ -505,9 +507,11 @@ class Layer:
         self.w_extended[:-1, :] = self.weights
 
     def set_input(self, x_input, x_extended):
+        """ Set the input values for the layer"""
         self.x_input = x_input
         self.x_extended = x_extended
 
     def set_activation_function(self, new_function):
+        """ Set the activation function for the layer"""
         self.activation_function = new_function
         
