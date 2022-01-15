@@ -1,6 +1,7 @@
-""" From scratch implementation of a multi-lyaer perceptron"""
+""" From scratch implementation of a multi-layer perceptron"""
 
 import numpy as np
+
 
 class MLP:
     """
@@ -15,6 +16,7 @@ class MLP:
     learning_rate - Learning rate hyperparameter
 
     """
+
     def __init__(self, *layers, y_pred, learning_rate=0.01):
         self.layers = layers
         self.y_pred = y_pred
@@ -59,10 +61,9 @@ class MLP:
         self.y_hat = next_input
         return self.y_hat
 
-
     def backprop(self, batch_size):
         """
-        Computes a single iteration of backpropagation and upd_ates the layer
+        Computes a single iteration of backpropagation and updates the layer
         weights and biases. Special handling is done to make sure the loss
         derivative gets calculated first, note that the loss derivatives
         are with respect to the unnormalized outputs, not the normalized.
@@ -100,7 +101,9 @@ class MLP:
 
                 d_w = (1 / batch_size) * np.transpose(current_layer.x_extended) @ d_z
 
-            current_layer.w_extended = current_layer.w_extended - (d_w * self.learning_rate)
+            current_layer.w_extended = current_layer.w_extended - (
+                d_w * self.learning_rate
+            )
 
     def cross_entropy_loss(self):
         """
@@ -128,10 +131,7 @@ class MLP:
 
         hinge = np.transpose(
             np.maximum(
-                0,
-                np.transpose(y_hat_unnorm)
-                - y_hat_unnorm[y_i[0, :], y_i[1, :]]
-                + 1
+                0, np.transpose(y_hat_unnorm) - y_hat_unnorm[y_i[0, :], y_i[1, :]] + 1
             )
         )
 
@@ -189,7 +189,8 @@ class MLP:
         y_train,
         x_test,
         y_test,
-        find_best_weights):
+        find_best_weights,
+    ):
 
         """
         The training loop that calls feedforward and backprop for a specified number of epochs.
@@ -219,7 +220,7 @@ class MLP:
 
         for i in range(epochs):
 
-            # Shuffle the d_ataset with a different seed each loop
+            # Shuffle the dataset with a different seed each loop
             # so that the shuffling isn't the same every epoch.
             np.random.seed(i)
             permutation = np.random.permutation(x_train.shape[0])
@@ -281,7 +282,7 @@ class MLP:
     def add_bias_factor(self, matrix, add_to_row):
         """
         This is basically just a utility function so that there isn't a lot
-        of redund_ant code every time extended values need to be added to a matrix.
+        of redundant code every time extended values need to be added to a matrix.
         I found this clever way of adding rows or columns to matrices on Stack Overflow:
         https://stackoverflow.com/questions/8486294/how-to-add-an-extra-column-to-a-numpy-array
         """
@@ -301,10 +302,11 @@ class MLP:
         for i, _ in enumerate(self.layers):
             self.layers[i].w_extended = self.layers[i].best_w
 
+
 class Layer:
     """
     Layer class, used for creating a single layer and handles both the relevant
-    information about the layer, such as weight, bias, input, unnomralized output,
+    information about the layer, such as weight, bias, input, unnormalized output,
     and normalized output, but also handles all of the computations that need to be
     done in that layer.
 
@@ -319,13 +321,15 @@ class Layer:
 
     loss_function - String specifying the loss function (hinge, softmax, none)
     """
+
     def __init__(
         self,
-        activation_function = "none",
-        num_inputs = 1,
-        num_outputs = 1,
-        loss_function = "none",
-        init_type = "normal"):
+        activation_function="none",
+        num_inputs=1,
+        num_outputs=1,
+        loss_function="none",
+        init_type="normal",
+    ):
 
         self.activation_function = activation_function
         self.loss_function = loss_function
@@ -378,7 +382,7 @@ class Layer:
         Resulting matrix after applying softmax activation, size is X.shape
         """
 
-        return np.exp(layer_output) / np.exp(layer_output).sum(1, keepdims = True)
+        return np.exp(layer_output) / np.exp(layer_output).sum(1, keepdims=True)
 
     def cross_entropy_derivative(self, y_pred):
         """
@@ -427,7 +431,7 @@ class Layer:
 
         The following post was extremely helpful when I was trying to figure out the
         vectorized implementation for this:
-        https://mlxai.github.io/2017/01/06/vectorized-implementation-of-svm-loss-and-gradient-upd_ate.html
+        https://mlxai.github.io/2017/01/06/vectorized-implementation-of-svm-loss-and-gradient-update.html
 
         """
         y_i = np.squeeze(np.nonzero(y_pred == 1))
@@ -436,7 +440,7 @@ class Layer:
                 0,
                 np.transpose(self.linear_output)
                 - self.linear_output[y_i[0, :], y_i[1, :]]
-                + 1
+                + 1,
             )
         )
         hinge[y_i[1, :]] = 0
@@ -450,7 +454,7 @@ class Layer:
 
         # The derivative at the truth index can now be expressed as the
         # negative of the sum of the number of ones
-        grad_at_yi = -np.sum(hinge, axis = 1)
+        grad_at_yi = -np.sum(hinge, axis=1)
         hinge[y_i[0, :], y_i[1, :]] = grad_at_yi
 
         hinge_derivative = hinge
@@ -458,7 +462,7 @@ class Layer:
 
     def compute_linear(self):
         """
-        Stand_ard linear computation for a layer, note that it is XW + b because
+        Standard linear computation for a layer, note that it is XW + b because
         my batch size is the row instead of the column, so it swaps the order
         of the multiplication from what we did in class. I did this because it's
         the way the d_ata is when it first gets loaded, so no reason to change it.
@@ -498,7 +502,9 @@ class Layer:
         """
 
         if init_type == "normal":
-            self.weights = np.random.normal(0, 0.01, (self.num_inputs, self.num_outputs))
+            self.weights = np.random.normal(
+                0, 0.01, (self.num_inputs, self.num_outputs)
+            )
         else:
             self.weights = np.zeros((self.num_inputs, self.num_outputs))
 
@@ -507,11 +513,10 @@ class Layer:
         self.w_extended[:-1, :] = self.weights
 
     def set_input(self, x_input, x_extended):
-        """ Set the input values for the layer"""
+        """Set the input values for the layer"""
         self.x_input = x_input
         self.x_extended = x_extended
 
     def set_activation_function(self, new_function):
-        """ Set the activation function for the layer"""
+        """Set the activation function for the layer"""
         self.activation_function = new_function
-        
