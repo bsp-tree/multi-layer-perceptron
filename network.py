@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from layer.activations import compute_activation
+
 
 class MLP:
     """
@@ -17,9 +19,9 @@ class MLP:
 
     """
 
-    def __init__(self, *layers, y_pred, learning_rate=0.01):
+    def __init__(self, *layers, y_truth, learning_rate=0.01):
         self.layers = layers
-        self.y_pred = y_pred
+        self.y_truth = y_truth
         self.y_hat = 0
         self.learning_rate = learning_rate
         self.test_loss = 0
@@ -50,7 +52,7 @@ class MLP:
         for i, _ in enumerate(self.layers):
             self.layers[i].compute_linear()
             if np.char.lower(self.layers[i].activation_function) != "none":
-                next_input = self.layers[i].compute_activation()
+                next_input = self.layers[i].call_activation()
                 next_input_extended = self.add_bias_factor(next_input, 0)
             else:
                 next_input = self.layers[i].linear_output
@@ -81,15 +83,15 @@ class MLP:
             loss_function = current_layer.loss_function
             if loss_function != "none":
                 if loss_function == "cross_entropy":
-                    d_z = current_layer.cross_entropy_derivative(self.y_pred)
+                    d_z = current_layer.cross_entropy_derivative(self.y_truth)
                 elif loss_function == "hinge":
-                    d_z = current_layer.hinge_derivative(self.y_pred)
+                    d_z = current_layer.hinge_derivative(self.y_truth)
 
                 d_w = (1 / batch_size) * np.transpose(current_layer.x_extended) @ d_z
             else:
                 previous_layer = self.layers[i + 1]
 
-                d_h = d_z @ previous_layer.W.T
+                d_h = d_z @ previous_layer.weights.T
 
                 if current_layer.activation_function == "relu":
                     d_a = current_layer.relu_derivative(current_layer.linear_output)
@@ -117,7 +119,7 @@ class MLP:
         index corresponding to the correct classification in the one-hot encoded
         test or training label y.
         """
-        label_index = np.argwhere(self.y_pred == 1)
+        label_index = np.argwhere(self.y_truth == 1)
         loss = np.sum(-np.log(self.y_hat[label_index[:, 0], label_index[:, 1]]))
 
         return loss
@@ -126,7 +128,7 @@ class MLP:
         """
         Calculates the hinge loss.
         """
-        y_i = np.squeeze(np.nonzero(self.y_pred == 1))
+        y_i = np.squeeze(np.nonzero(self.y_truth == 1))
         y_hat_unnorm = self.layers[-1].linear_output
 
         hinge = np.transpose(
@@ -159,7 +161,7 @@ class MLP:
 
         for i in range(len(self.y_hat)):
             y_hat_arg = np.argmax(self.y_hat[i, :])
-            y_arg = np.argmax(self.y_pred[i, :])
+            y_arg = np.argmax(self.y_truth[i, :])
 
             if y_hat_arg == y_arg:
                 right_class = right_class + 1
@@ -245,7 +247,7 @@ class MLP:
                     x_train_extended,
                 )
 
-                self.y_pred = train_y_shuffled[batch_start:batch_end, :]
+                self.y_truth = train_y_shuffled[batch_start:batch_end, :]
                 self.y_hat = self.feedforward()
                 self.backprop(batch_size)
 
@@ -260,7 +262,7 @@ class MLP:
                 x_test_extended = self.add_bias_factor(x_test, 0)
                 self.layers[0].set_input(x_test, x_test_extended)
 
-                self.y_pred = y_test
+                self.y_truth = y_test
                 self.y_hat = self.feedforward()
 
                 self.test_loss[i] = np.sum(self.compute_loss()) / len(y_test)
@@ -344,47 +346,7 @@ class Layer:
 
         self.init_params(init_type)
 
-    def relu(self, layer_output):
-        """
-        Relu activation
-
-        Inputs:
-        layer_output - Should be the result of a layer's linear calculation
-
-        Outputs:
-        Resulting matrix after applying relu activation, size is X.shape
-        """
-
-        relu_out = np.maximum(np.zeros(layer_output.shape), layer_output)
-        return relu_out
-
-    def sigmoid(self, layer_output):
-        """
-        Sigmoid activation
-
-        Inputs:
-        layer_output - Should be the result of a layer's linear calculation
-
-        Outputs:
-        Resulting matrix after applying sigmoid activation, size is X.shape
-        """
-
-        return 1 / (1 + np.exp(-layer_output))
-
-    def softmax(self, layer_output):
-        """
-        Softmax activation
-
-        Inputs:
-        X - Should be the result of the output layer's linear calculation
-
-        Outputs:
-        Resulting matrix after applying softmax activation, size is X.shape
-        """
-
-        return np.exp(layer_output) / np.exp(layer_output).sum(1, keepdims=True)
-
-    def cross_entropy_derivative(self, y_pred):
+    def cross_entropy_derivative(self, y_truth):
         """
         Calculates the derivative of cross-entropy loss with respect to
         the unnormalized y_hat. This derivative assumes that the unnormalized y_hat is the
@@ -397,7 +359,7 @@ class Layer:
         Outputs: dloss/d_z, see above.
         """
 
-        return self.y_hat - y_pred
+        return self.y_hat - y_truth
 
     def relu_derivative(self, x_input):
         """
@@ -418,7 +380,7 @@ class Layer:
 
         return sigmoid_derivative
 
-    def hinge_derivative(self, y_pred):
+    def hinge_derivative(self, y_truth):
         """
         Derivative for hinge loss with respect to the unnormalized output of the final
         layer. The derivative is calculated like this: If the result of the hinge loss
@@ -434,7 +396,7 @@ class Layer:
         https://mlxai.github.io/2017/01/06/vectorized-implementation-of-svm-loss-and-gradient-update.html
 
         """
-        y_i = np.squeeze(np.nonzero(y_pred == 1))
+        y_i = np.squeeze(np.nonzero(y_truth == 1))
         hinge = np.transpose(
             np.maximum(
                 0,
@@ -471,24 +433,14 @@ class Layer:
 
         return self.linear_output
 
-    def compute_activation(self):
-        """
-        Calls the proper activation function for a layer depending on what that
-        layer's specified activation is. This is so the network doesn't have to figure
-        out what activation it needs to call, it just calls this function and the layer figures out
-        what activation function it needs.
+    def call_activation(self):
+        """ Calls the proper activation function for a layer depending on what that
+        layer's specified activation is."""
 
-        Returns the output of the activation call.
-        """
-        if np.char.lower(self.activation_function) == "none":
-            raise RuntimeError("No activation method set for this layer")
-        elif np.char.lower(self.activation_function) == "relu":
-            self.activation_output = self.relu(self.linear_output)
-        elif np.char.lower(self.activation_function) == "softmax":
-            self.activation_output = self.softmax(self.linear_output)
+        self.activation_output = compute_activation(self.linear_output, self.activation_function)
+
+        if self.activation_function == "softmax":
             self.y_hat = self.activation_output
-        elif np.char.lower(self.activation_function) == "sigmoid":
-            self.activation_output = self.sigmoid(self.linear_output)
 
         return self.activation_output
 
